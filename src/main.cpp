@@ -1,8 +1,49 @@
 #include <M5Unified.h>
 #include <Avatar.h>
 #include <unordered_map>
+#include "BLEDevice.h"
+#include "BLEServer.h"
+#include <BLE2902.h>
+
+#define SERVICE_UUID "0B21C05A-44C2-47CC-BFEF-4F7165C33908"
+#define CHARACTERISTIC_UUID "B3C450C9-5FC5-48F6-9EFD-D588E494F462"
 
 using namespace m5avatar;
+
+bool connected = false;
+
+class MyServerCallbacks : public BLEServerCallbacks
+{
+    void onConnect(BLEServer *pServer)
+    {
+        connected = true;
+    };
+
+    void onDisconnect(BLEServer *pServer)
+    {
+        connected = false;
+    }
+};
+
+void setupServer()
+{
+    BLEDevice::init("M5AtomS3");
+    BLEServer *pServer = BLEDevice::createServer();
+    pServer->setCallbacks(new MyServerCallbacks());
+
+    BLEService *pService = pServer->createService(SERVICE_UUID);
+    BLECharacteristic *pExpressionCharacteristic = pService->createCharacteristic(
+        CHARACTERISTIC_UUID,
+        BLECharacteristic::PROPERTY_READ |
+            BLECharacteristic::PROPERTY_WRITE);
+    pExpressionCharacteristic->addDescriptor(new BLE2902());
+
+    pService->start();
+
+    BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+    pAdvertising->addServiceUUID(SERVICE_UUID);
+    pAdvertising->setScanResponse(true);
+}
 
 Avatar avatar;
 
@@ -72,6 +113,12 @@ public:
             setNextState(State::Ready);
         }
     }
+
+    void onExit() override
+    {
+        setupAvatar();
+        setupServer();
+    }
 };
 
 class ReadyStateBehavior : public BaseStateBehavior
@@ -79,7 +126,20 @@ class ReadyStateBehavior : public BaseStateBehavior
 public:
     void onEnter() override
     {
-        setupAvatar();
+        BLEDevice::startAdvertising();
+    }
+
+    void onUpdate() override
+    {
+        if (connected)
+        {
+            setNextState(State::Idle);
+        }
+    }
+
+    void onExit() override
+    {
+        BLEDevice::stopAdvertising();
     }
 };
 
@@ -96,13 +156,14 @@ void setup()
 {
     auto cfg = M5.config();
     M5.begin(cfg);
+    USBSerial.begin(115200);
     currentState = State::Start;
     nextState = State::Start;
     StartStateBehavior *startStateBehavior = new StartStateBehavior();
     stateBehavior = startStateBehavior;
     stateBehaviors[State::Start] = startStateBehavior;
     stateBehaviors[State::Ready] = new ReadyStateBehavior();
-    stateBehaviors[State::Idle] = new BaseStateBehavior();
+    stateBehaviors[State::Idle] = new IdleStateBehavior();
     stateBehavior->onEnter();
 }
 
