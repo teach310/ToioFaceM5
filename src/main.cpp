@@ -25,6 +25,26 @@ class MyServerCallbacks : public BLEServerCallbacks
     }
 };
 
+int expression = static_cast<int>(Expression::Neutral);
+bool isExpressionChanged = false;
+
+class ExpressionCharacteristicCallbacks : public BLECharacteristicCallbacks
+{
+    void onWrite(BLECharacteristic *pCharacteristic)
+    {        
+        std::string value = pCharacteristic->getValue();
+        if (value.length() > 0)
+        {
+            if (value[0] == expression)
+            {
+                return;
+            }
+            expression = value[0];
+            isExpressionChanged = true;
+        }
+    }
+};
+
 void setupServer()
 {
     BLEDevice::init("M5AtomS3");
@@ -37,6 +57,7 @@ void setupServer()
         BLECharacteristic::PROPERTY_READ |
             BLECharacteristic::PROPERTY_WRITE);
     pExpressionCharacteristic->addDescriptor(new BLE2902());
+    pExpressionCharacteristic->setCallbacks(new ExpressionCharacteristicCallbacks());
 
     pService->start();
 
@@ -146,9 +167,13 @@ public:
 class IdleStateBehavior : public BaseStateBehavior
 {
 public:
-    void onEnter() override
+    void onUpdate() override
     {
-        avatar.setExpression(Expression::Happy);
+        if (isExpressionChanged)
+        {
+            avatar.setExpression(static_cast<Expression>(expression));
+            isExpressionChanged = false;
+        }
     }
 };
 
