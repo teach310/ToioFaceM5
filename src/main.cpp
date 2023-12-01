@@ -74,10 +74,10 @@ void setupAvatar()
     avatar.setPosition(-56, -96);
 
     // 目と口のサイズを1.5倍にする
-    Face *face = avatar.getFace();
-    face->setLeftEye(new Eye(12, false));
-    face->setRightEye(new Eye(12, true));
-    face->setMouth(new Mouth(50, 90, 6, 60));
+    Face *pFace = avatar.getFace();
+    pFace->setLeftEye(new Eye(12, false));
+    pFace->setRightEye(new Eye(12, true));
+    pFace->setMouth(new Mouth(50, 90, 6, 60));
     avatar.init();
 }
 
@@ -98,7 +98,7 @@ public:
 
 State currentState;
 State nextState;
-BaseStateBehavior *stateBehavior;
+BaseStateBehavior *pStateBehavior;
 std::unordered_map<State, BaseStateBehavior *> stateBehaviors;
 
 void setNextState(State state)
@@ -108,13 +108,13 @@ void setNextState(State state)
 
 void changeState()
 {
-    if (stateBehavior != nullptr)
+    if (pStateBehavior != nullptr)
     {
-        stateBehavior->onExit();
+        pStateBehavior->onExit();
     }
     currentState = nextState;
-    stateBehavior = stateBehaviors[currentState];
-    stateBehavior->onEnter();
+    pStateBehavior = stateBehaviors[currentState];
+    pStateBehavior->onEnter();
 }
 
 class StartStateBehavior : public BaseStateBehavior
@@ -184,12 +184,12 @@ void setup()
     USBSerial.begin(115200);
     currentState = State::Start;
     nextState = State::Start;
-    StartStateBehavior *startStateBehavior = new StartStateBehavior();
-    stateBehavior = startStateBehavior;
-    stateBehaviors[State::Start] = startStateBehavior;
+    StartStateBehavior *pStartStateBehavior = new StartStateBehavior();
+    pStateBehavior = pStartStateBehavior;
+    stateBehaviors[State::Start] = pStartStateBehavior;
     stateBehaviors[State::Ready] = new ReadyStateBehavior();
     stateBehaviors[State::Idle] = new IdleStateBehavior();
-    stateBehavior->onEnter();
+    pStateBehavior->onEnter();
 }
 
 void loop()
@@ -198,5 +198,5 @@ void loop()
     {
         changeState();
     }
-    stateBehavior->onUpdate();
+    pStateBehavior->onUpdate();
 }
