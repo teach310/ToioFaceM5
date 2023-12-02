@@ -1,4 +1,5 @@
 #include <M5Unified.h>
+#include "Adafruit_VL53L0X.h"
 #include <Avatar.h>
 #include <unordered_map>
 #include "BLEDevice.h"
@@ -31,7 +32,7 @@ bool isExpressionChanged = false;
 class ExpressionCharacteristicCallbacks : public BLECharacteristicCallbacks
 {
     void onWrite(BLECharacteristic *pCharacteristic)
-    {        
+    {
         std::string value = pCharacteristic->getValue();
         if (value.length() > 0)
         {
@@ -64,6 +65,19 @@ void setupServer()
     BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
     pAdvertising->addServiceUUID(SERVICE_UUID);
     pAdvertising->setScanResponse(true);
+}
+
+Adafruit_VL53L0X lox = Adafruit_VL53L0X();
+
+void setupLox()
+{
+    Wire.setPins(SDA, SCL);
+    if (!lox.begin())
+    {
+        M5.Display.println(F("Failed to boot VL53L0X"));
+        while (1)
+            ;
+    }
 }
 
 Avatar avatar;
@@ -139,6 +153,7 @@ public:
     {
         setupAvatar();
         setupServer();
+        setupLox();
     }
 };
 
@@ -166,7 +181,23 @@ public:
 
 class IdleStateBehavior : public BaseStateBehavior
 {
+private:
+    unsigned long latestReadRangeTime = 0;
+    const unsigned long readRangeInterval = 100;
+
+    void readDistance()
+    {
+        uint16_t distance = lox.readRange();
+        USBSerial.print("Distance: ");
+        USBSerial.println(distance);
+    }
+
 public:
+    void onEnter() override
+    {
+        lox.startRangeContinuous();
+    }
+
     void onUpdate() override
     {
         if (isExpressionChanged)
@@ -174,6 +205,18 @@ public:
             avatar.setExpression(static_cast<Expression>(expression));
             isExpressionChanged = false;
         }
+
+        unsigned long now = millis();
+        if (now - latestReadRangeTime >= readRangeInterval && lox.isRangeComplete())
+        {
+            readDistance();
+            latestReadRangeTime = now;
+        }
+    }
+
+    void onExit() override
+    {
+        lox.stopRangeContinuous();
     }
 };
 
