@@ -1,4 +1,5 @@
 #include <M5Unified.h>
+#include "Adafruit_VL53L0X.h"
 #include <Avatar.h>
 #include <unordered_map>
 #include "BLEDevice.h"
@@ -6,7 +7,8 @@
 #include <BLE2902.h>
 
 #define SERVICE_UUID "0B21C05A-44C2-47CC-BFEF-4F7165C33908"
-#define CHARACTERISTIC_UUID "B3C450C9-5FC5-48F6-9EFD-D588E494F462"
+#define EXPRESSION_CHARACTERISTIC_UUID "B3C450C9-5FC5-48F6-9EFD-D588E494F462"
+#define DISTANCE_CHARACTERISTIC_UUID "29C2D1B2-944A-4FBA-AFCD-133E09532556"
 
 using namespace m5avatar;
 
@@ -31,7 +33,7 @@ bool isExpressionChanged = false;
 class ExpressionCharacteristicCallbacks : public BLECharacteristicCallbacks
 {
     void onWrite(BLECharacteristic *pCharacteristic)
-    {        
+    {
         std::string value = pCharacteristic->getValue();
         if (value.length() > 0)
         {
@@ -45,6 +47,8 @@ class ExpressionCharacteristicCallbacks : public BLECharacteristicCallbacks
     }
 };
 
+BLECharacteristic *pDistanceCharacteristic;
+
 void setupServer()
 {
     BLEDevice::init("M5AtomS3");
@@ -53,17 +57,36 @@ void setupServer()
 
     BLEService *pService = pServer->createService(SERVICE_UUID);
     BLECharacteristic *pExpressionCharacteristic = pService->createCharacteristic(
-        CHARACTERISTIC_UUID,
+        EXPRESSION_CHARACTERISTIC_UUID,
         BLECharacteristic::PROPERTY_READ |
             BLECharacteristic::PROPERTY_WRITE);
     pExpressionCharacteristic->addDescriptor(new BLE2902());
     pExpressionCharacteristic->setCallbacks(new ExpressionCharacteristicCallbacks());
+
+    pDistanceCharacteristic = pService->createCharacteristic(
+        DISTANCE_CHARACTERISTIC_UUID,
+        BLECharacteristic::PROPERTY_READ |
+            BLECharacteristic::PROPERTY_NOTIFY);
+    pDistanceCharacteristic->addDescriptor(new BLE2902());
 
     pService->start();
 
     BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
     pAdvertising->addServiceUUID(SERVICE_UUID);
     pAdvertising->setScanResponse(true);
+}
+
+Adafruit_VL53L0X lox = Adafruit_VL53L0X();
+
+void setupLox()
+{
+    Wire.setPins(SDA, SCL);
+    if (!lox.begin())
+    {
+        M5.Display.println(F("Failed to boot VL53L0X"));
+        while (1)
+            ;
+    }
 }
 
 Avatar avatar;
@@ -139,6 +162,7 @@ public:
     {
         setupAvatar();
         setupServer();
+        setupLox();
     }
 };
 
@@ -166,7 +190,31 @@ public:
 
 class IdleStateBehavior : public BaseStateBehavior
 {
+private:
+    unsigned long latestReadRangeTime = 0;
+    const unsigned long readRangeInterval = 100;
+
+    std::string distanceNotifyData(uint16_t value)
+    {
+        std::string data;
+        data += static_cast<char>(value & 0xff);
+        data += static_cast<char>((value >> 8) & 0xff);
+        return data;
+    }
+
+    void readDistance()
+    {
+        uint16_t distance = lox.readRange();
+        pDistanceCharacteristic->setValue(distanceNotifyData(distance));
+        pDistanceCharacteristic->notify();
+    }
+
 public:
+    void onEnter() override
+    {
+        lox.startRangeContinuous();
+    }
+
     void onUpdate() override
     {
         if (isExpressionChanged)
@@ -174,6 +222,18 @@ public:
             avatar.setExpression(static_cast<Expression>(expression));
             isExpressionChanged = false;
         }
+
+        unsigned long now = millis();
+        if (now - latestReadRangeTime >= readRangeInterval && lox.isRangeComplete())
+        {
+            readDistance();
+            latestReadRangeTime = now;
+        }
+    }
+
+    void onExit() override
+    {
+        lox.stopRangeContinuous();
     }
 };
 
