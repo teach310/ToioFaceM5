@@ -217,6 +217,12 @@ public:
 
     void onUpdate() override
     {
+        if (!connected)
+        {
+            setNextState(State::Ready);
+            return;
+        }
+
         if (isExpressionChanged)
         {
             avatar.setExpression(static_cast<Expression>(expression));
