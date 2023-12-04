@@ -7,7 +7,7 @@
 #include <BLE2902.h>
 
 #define SERVICE_UUID "0B21C05A-44C2-47CC-BFEF-4F7165C33908"
-#define CHARACTERISTIC_UUID "B3C450C9-5FC5-48F6-9EFD-D588E494F462"
+#define EXPRESSION_CHARACTERISTIC_UUID "B3C450C9-5FC5-48F6-9EFD-D588E494F462"
 
 using namespace m5avatar;
 
@@ -54,7 +54,7 @@ void setupServer()
 
     BLEService *pService = pServer->createService(SERVICE_UUID);
     BLECharacteristic *pExpressionCharacteristic = pService->createCharacteristic(
-        CHARACTERISTIC_UUID,
+        EXPRESSION_CHARACTERISTIC_UUID,
         BLECharacteristic::PROPERTY_READ |
             BLECharacteristic::PROPERTY_WRITE);
     pExpressionCharacteristic->addDescriptor(new BLE2902());
