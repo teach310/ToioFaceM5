@@ -8,6 +8,7 @@
 
 #define SERVICE_UUID "0B21C05A-44C2-47CC-BFEF-4F7165C33908"
 #define EXPRESSION_CHARACTERISTIC_UUID "B3C450C9-5FC5-48F6-9EFD-D588E494F462"
+#define DISTANCE_CHARACTERISTIC_UUID "29C2D1B2-944A-4FBA-AFCD-133E09532556"
 
 using namespace m5avatar;
 
@@ -46,6 +47,8 @@ class ExpressionCharacteristicCallbacks : public BLECharacteristicCallbacks
     }
 };
 
+BLECharacteristic *pDistanceCharacteristic;
+
 void setupServer()
 {
     BLEDevice::init("M5AtomS3");
@@ -59,6 +62,12 @@ void setupServer()
             BLECharacteristic::PROPERTY_WRITE);
     pExpressionCharacteristic->addDescriptor(new BLE2902());
     pExpressionCharacteristic->setCallbacks(new ExpressionCharacteristicCallbacks());
+
+    pDistanceCharacteristic = pService->createCharacteristic(
+        DISTANCE_CHARACTERISTIC_UUID,
+        BLECharacteristic::PROPERTY_READ |
+            BLECharacteristic::PROPERTY_NOTIFY);
+    pDistanceCharacteristic->addDescriptor(new BLE2902());
 
     pService->start();
 
@@ -185,11 +194,19 @@ private:
     unsigned long latestReadRangeTime = 0;
     const unsigned long readRangeInterval = 100;
 
+    std::string distanceNotifyData(uint16_t value)
+    {
+        std::string data;
+        data += static_cast<char>(value & 0xff);
+        data += static_cast<char>((value >> 8) & 0xff);
+        return data;
+    }
+
     void readDistance()
     {
         uint16_t distance = lox.readRange();
-        USBSerial.print("Distance: ");
-        USBSerial.println(distance);
+        pDistanceCharacteristic->setValue(distanceNotifyData(distance));
+        pDistanceCharacteristic->notify();
     }
 
 public:
