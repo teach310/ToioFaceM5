@@ -56,13 +56,6 @@ State nextState = State::Start;
 BaseStateBehavior *pStateBehavior;
 std::unordered_map<State, BaseStateBehavior *> stateBehaviors;
 
-void registerBehaviors()
-{
-    stateBehaviors[State::Start] = new StartStateBehavior();
-    stateBehaviors[State::Ready] = new ReadyStateBehavior();
-    stateBehaviors[State::Idle] = new IdleStateBehavior();
-}
-
 void setNextState(State state)
 {
     nextState = state;
@@ -166,6 +159,13 @@ public:
         lox.stopRangeContinuous();
     }
 };
+
+void registerBehaviors()
+{
+    stateBehaviors[State::Start] = new StartStateBehavior();
+    stateBehaviors[State::Ready] = new ReadyStateBehavior();
+    stateBehaviors[State::Idle] = new IdleStateBehavior();
+}
 
 void setup()
 {
