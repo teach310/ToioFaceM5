@@ -6,9 +6,22 @@
 
 using namespace m5avatar;
 
-BLE ble = BLE();
+enum class State
+{
+    Start,
+    Ready,
+    Idle,
+};
 
+class BaseStateBehavior;
+
+BLE ble = BLE();
 Adafruit_VL53L0X lox = Adafruit_VL53L0X();
+Avatar avatar;
+State currentState = State::Start;
+State nextState = State::Start;
+BaseStateBehavior *pStateBehavior;
+std::unordered_map<State, BaseStateBehavior *> stateBehaviors;
 
 void setupLox()
 {
@@ -20,8 +33,6 @@ void setupLox()
             ;
     }
 }
-
-Avatar avatar;
 
 void setupAvatar()
 {
@@ -36,13 +47,6 @@ void setupAvatar()
     avatar.init();
 }
 
-enum class State
-{
-    Start,
-    Ready,
-    Idle
-};
-
 class BaseStateBehavior
 {
 public:
@@ -50,11 +54,6 @@ public:
     virtual void onUpdate() {}
     virtual void onExit() {}
 };
-
-State currentState = State::Start;
-State nextState = State::Start;
-BaseStateBehavior *pStateBehavior;
-std::unordered_map<State, BaseStateBehavior *> stateBehaviors;
 
 void setNextState(State state)
 {

@@ -7,7 +7,7 @@
 
 static bool connected = false;
 static int expression = -1;
-static bool isExpressionChanged = false;
+static bool expressionChanged = false;
 
 class MyServerCallbacks : public BLEServerCallbacks
 {
@@ -34,7 +34,7 @@ class ExpressionCharacteristicCallbacks : public BLECharacteristicCallbacks
                 return;
             }
             expression = value[0];
-            isExpressionChanged = true;
+            expressionChanged = true;
         }
     }
 };
@@ -73,7 +73,7 @@ int BLE::getExpression()
 
 bool BLE::isExpressionChanged()
 {
-    return isExpressionChanged;
+    return expressionChanged;
 }
 
 bool BLE::isConnected()
