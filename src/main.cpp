@@ -23,6 +23,24 @@ State nextState = State::Start;
 BaseStateBehavior *pStateBehavior;
 std::unordered_map<State, BaseStateBehavior *> stateBehaviors;
 
+// I'd prefer to receive MouseOpenRatio from Central, but it's a hassle, so let's go with a fixed decision.
+void setExpression(Expression expression)
+{
+    avatar.setExpression(expression);
+    switch (expression)
+    {
+    case Expression::Angry:
+        avatar.setMouthOpenRatio(0.7);
+        break;
+    case Expression::Happy:
+        avatar.setMouthOpenRatio(0.3);
+        break;
+    default:
+        avatar.setMouthOpenRatio(0);
+        break;
+    }
+}
+
 void setupLox()
 {
     Wire.setPins(SDA, SCL);
@@ -141,7 +159,7 @@ public:
 
         if (ble.isExpressionChanged())
         {
-            avatar.setExpression(static_cast<Expression>(ble.getExpression()));
+            setExpression(static_cast<Expression>(ble.getExpression()));
         }
 
         unsigned long now = millis();
